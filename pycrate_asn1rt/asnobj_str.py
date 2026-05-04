@@ -121,34 +121,36 @@ Specific constraints attributes:
                 raise(ASN1ObjErr('{0}: invalid object reference, {1!r}'\
                       .format(self.fullname(), ref)))
     
-    def _safechk_val(self, val):
+    def _safechk_val(self, val, parent_key=''):
+        _key = parent_key or self.fullname()
         if isinstance(val, tuple) and len(val) == 2:
             if isinstance(val[0], integer_types):
                 # raw value
                 if not isinstance(val[1], integer_types):
-                    ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+                    ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(_key, val)))
             else:
                 # CONTAINING value
-                self._get_val_obj(val[0])._safechk_val(val[1])
+                self._get_val_obj(val[0])._safechk_val(val[1], _key)
         elif isinstance(val, list):
             # named bits
             if not self._cont:
-                ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid named bits, {1!r}'.format(self.fullname(), val)))
+                ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid named bits, {1!r}'.format(_key, val)))
             elif any([nb not in self._cont for nb in val]):
-                ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid named bits, {1!r}'.format(self.fullname(), val)))
+                ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid named bits, {1!r}'.format(_key, val)))
         else:
-            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
-    
-    def _safechk_bnd(self, val):
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(_key, val)))
+
+    def _safechk_bnd(self, val, parent_key=''):
+        _key = parent_key or self.fullname()
         if isinstance(val, tuple):
             if isinstance(val[0], integer_types):
                 # check val against potential constraints
-                ASN1Obj._safechk_bnd(self, val)
+                ASN1Obj._safechk_bnd(self, val, _key)
                 if self._const_sz and \
                 self._const_sz.ext is None and \
                 val[1] not in self._const_sz:
                     ASN1Obj._errors.append(ASN1ObjErr('{0}: value out of size constraint, {1!r}'\
-                          .format(self.fullname(), val)))
+                          .format(_key, val)))
             elif self._const_cont:
                 if self._const_cont._typeref:
                     ident = self._const_cont._typeref.called[1]
@@ -156,7 +158,7 @@ Specific constraints attributes:
                     ident = self._const_cont.TYPE
                 if val[0] != ident:
                     ASN1Obj._errors.append(ASN1ObjErr('{0}: value out of containing constraint, {1!r}'\
-                          .format(self.fullname(), val)))
+                          .format(_key, val)))
 
     def get_names(self):
         """Returns the list of names from the NamedBitList corresponding to the
@@ -1247,19 +1249,20 @@ Specific constraints attributes:
                 raise(ASN1ObjErr('{0}: invalid object reference, {1!r}'\
                       .format(self.fullname(), ref)))
     
-    def _safechk_val(self, val):
+    def _safechk_val(self, val, parent_key=''):
         if not isinstance(val, bytes_types):
-            self._get_val_obj(val[0])._safechk_val(val[1])
-    
-    def _safechk_bnd(self, val):
+            self._get_val_obj(val[0])._safechk_val(val[1], parent_key or self.fullname())
+
+    def _safechk_bnd(self, val, parent_key=''):
+        _key = parent_key or self.fullname()
         if isinstance(val, bytes_types):
             # check val against potential constraints
-            ASN1Obj._safechk_bnd(self, val)
+            ASN1Obj._safechk_bnd(self, val, _key)
             if self._const_sz and \
             self._const_sz.ext is None and \
             len(val) not in self._const_sz:
                 ASN1Obj._errors.append(ASN1ObjErr('{0}: value out of size constraint, {1!r}'\
-                      .format(self.fullname(), val)))
+                      .format(_key, val)))
         else:
             if self._const_cont._typeref:
                 ident = self._const_cont._typeref.called[1]
@@ -1267,7 +1270,7 @@ Specific constraints attributes:
                 ident = self._const_cont.TYPE
             if val[0] != ident:
                 ASN1Obj._errors.append(ASN1ObjErr('{0}: value out of containing constraint, {1!r}'\
-                      .format(self.fullname(), val)))
+                      .format(_key, val)))
     
     ###
     # conversion between internal value and ASN.1 syntax
@@ -1990,27 +1993,29 @@ Virtual parent for any ASN.1 *String object
             # for N possible characters in the permitted alphabet
             return cdyn
     
-    def _safechk_val(self, val):
+    def _safechk_val(self, val, parent_key=''):
+        _key = parent_key or self.fullname()
         if not isinstance(val, str_types):
-            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(_key, val)))
             return
         if self._ALPHA_RE and not all([c in self._ALPHA_RE for c in val]):
-            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid character in value, {1!r}'.format(self.fullname(), val)))
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid character in value, {1!r}'.format(_key, val)))
 
-    def _safechk_bnd(self, val):
+    def _safechk_bnd(self, val, parent_key=''):
+        _key = parent_key or self.fullname()
         # check val against potential constraints
-        ASN1Obj._safechk_bnd(self, val)
+        ASN1Obj._safechk_bnd(self, val, _key)
         if self._const_sz and \
         self._const_sz.ext is None and \
         len(val) not in self._const_sz:
             ASN1Obj._errors.append(ASN1ObjErr('{0}: value out of size constraint, {1!r}'\
-                  .format(self.fullname(), val)))
+                  .format(_key, val)))
         if self._const_alpha and \
         self._const_alpha.ext is None:
             for c in val:
                 if c not in self._const_alpha:
                     ASN1Obj._errors.append(ASN1ObjErr('{0}: value out of alphabet constraint, {1!r}'\
-                          .format(self.fullname(), val)))
+                          .format(_key, val)))
     
     ###
     # conversion between internal value and ASN.1 syntax
@@ -3175,11 +3180,12 @@ Single value: Python 7-tuple of str or None
     _ASN_RE = re.compile(
     '"([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2}){0,1}((?:Z)|(?:[+-]{1}[0-9]{4}))"')
     
-    def _safechk_val(self, val):
+    def _safechk_val(self, val, parent_key=''):
         if not isinstance(val, tuple) or len(val) != 7 \
         or not all([isinstance(v, str_types + (NoneType,)) for v in val]):
             # TODO: more conditions are required to test for the exact format
-            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+            _key = parent_key or self.fullname()
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(_key, val)))
     
     ###
     # conversion between internal value and ASN.1 syntax
@@ -3266,11 +3272,12 @@ Single value: Python 8-tuple of str or None
     r'(?:(?:\.|,)([0-9]{1,})){0,1}'
     r'((?:Z)|(?:[+-](?:[0-9]{2}){0,2})){0,1}"')
     
-    def _safechk_val(self, val):
+    def _safechk_val(self, val, parent_key=''):
         if not isinstance(val, tuple) or len(val) != 8 \
         or not all([isinstance(v, str_types + (NoneType,)) for v in val]):
             # TODO: more conditions are required to test for the exact format
-            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+            _key = parent_key or self.fullname()
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(_key, val)))
     
     ###
     # conversion between internal value and ASN.1 syntax

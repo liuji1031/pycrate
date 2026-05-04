@@ -55,9 +55,10 @@ Single value: int 0
     TYPE  = TYPE_NULL
     TAG   = 5
     
-    def _safechk_val(self, val):
+    def _safechk_val(self, val, parent_key=''):
         if val != 0:
-            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+            _key = parent_key or self.fullname()
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(_key, val)))
     
     ###
     # conversion between internal value and ASN.1 syntax
@@ -171,9 +172,10 @@ Single value: Python bool
     _OER_LUT = {ASN1CodecOER.TRUE: True, ASN1CodecOER.FALSE: False}
     _OER_LUTS = {ASN1CodecOER.FALSE: 'FALSE', ASN1CodecOER.TRUE: 'TRUE'}
     
-    def _safechk_val(self, val):
+    def _safechk_val(self, val, parent_key=''):
         if not isinstance(val, bool):
-            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+            _key = parent_key or self.fullname()
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(_key, val)))
     
     ###
     # conversion between internal value and ASN.1 syntax
@@ -333,19 +335,20 @@ Specific attribute:
     
     _ASN_RE = re.compile(r'\-{0,1}[0-9]{1,}')
     
-    def _safechk_val(self, val):
+    def _safechk_val(self, val, parent_key=''):
+        _key = parent_key or self.fullname()
         if isinstance(val, str_types):
             if not self._cont:
-                ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid named value, {1!r}'.format(self.fullname(), val)))
+                ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid named value, {1!r}'.format(_key, val)))
             elif val not in self._cont:
-                ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid named value, {1!r}'.format(self.fullname(), val)))
+                ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid named value, {1!r}'.format(_key, val)))
         else:
-            self._safechk_val_int(val)
-    
-    def _safechk_bnd(self, val):
+            self._safechk_val_int(val, parent_key)
+
+    def _safechk_bnd(self, val, parent_key=''):
         # only check bound when an integer is set as value
         if isinstance(val, integer_types):
-            ASN1Obj._safechk_bnd(self, val)
+            ASN1Obj._safechk_bnd(self, val, parent_key)
     
     def get_name(self):
         """Returns the NamedNumber corresponding to the internal value
@@ -705,8 +708,8 @@ Specific attribute:
     
     _JER_RE = re.compile(r'[ 0]{0,}([-+]{0,1}[0-9]{0,})(?:[\.,]{1}([0-9]{0,})){0,1}[eE]([-+]{0,1}[0-9]{1,})')
     
-    def _safechk_val(self, val):
-        self._safechk_val_real(val)
+    def _safechk_val(self, val, parent_key=''):
+        self._safechk_val_real(val, parent_key)
     
     ###
     # conversion between internal value and ASN.1 syntax
@@ -1216,10 +1219,11 @@ Specific attribute:
     
     #_ASN_RE created at runtime, depends of self._cont
     
-    def _safechk_val(self, val):
+    def _safechk_val(self, val, parent_key=''):
         if not isinstance(val, str_types) or val not in self._cont:
             if self._ext is None or not re.match('_ext_[0-9]{1,}', val):
-                ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+                _key = parent_key or self.fullname()
+                ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(_key, val)))
     
     ###
     # conversion between internal value and ASN.1 syntax
@@ -1569,10 +1573,11 @@ class _OID(ASN1Obj):
     # when returned by _to_asn1() 
     _ASN_WASC = True
     
-    def _safechk_val(self, val):
+    def _safechk_val(self, val, parent_key=''):
         if not isinstance(val, tuple) or \
         not all([isinstance(i, integer_types) for i in val]):
-            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+            _key = parent_key or self.fullname()
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(_key, val)))
     
     ###
     # conversion between internal value and ASN.1 syntax

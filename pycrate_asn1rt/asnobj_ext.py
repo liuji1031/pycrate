@@ -162,28 +162,30 @@ Single value: Python 2-tuple
             self.__const_tr__ = const_tr
             return const_tr
     
-    def _safechk_val(self, val):
+    def _safechk_val(self, val, parent_key=''):
+        _key = parent_key or self.fullname()
         if isinstance(val, tuple) and len(val) == 2:
             if isinstance(val[0], ASN1Obj):
-                val[0]._safechk_val(val[1])
+                val[0]._safechk_val(val[1], _key)
             elif isinstance(val[0], str_types):
                 if re.match('_unk_[0-9]{1,}', val[0]):
                     if not isinstance(val[1], bytes_types):
-                        ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+                        ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(_key, val)))
                 else:
-                    self._get_val_obj(val[0])._safechk_val(val[1])
+                    self._get_val_obj(val[0])._safechk_val(val[1], _key)
             elif isinstance(val[0], tuple) and len(val[0]) == 2:
-                self._get_val_obj(val[0])._safechk_val(val[1])
+                self._get_val_obj(val[0])._safechk_val(val[1], _key)
             else:
-                ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+                ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(_key, val)))
         else:
-            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
-    
-    def _safechk_bnd(self, val):
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(_key, val)))
+
+    def _safechk_bnd(self, val, parent_key=''):
+        _key = parent_key or self.fullname()
         if isinstance(val[0], ASN1Obj):
-            val[0]._safechk_bnd(val[1])
+            val[0]._safechk_bnd(val[1], _key)
         elif val[0][:5] != '_unk_':
-            self._get_val_obj(val[0])._safechk_bnd(val[1])
+            self._get_val_obj(val[0])._safechk_bnd(val[1], _key)
     
     ###
     # conversion between internal value and ASN.1 syntax
