@@ -58,10 +58,10 @@ class ASN1ObjValErr(ASN1ObjErr):
         self.val = val
         self.msg = msg
         # Initialize the base class with a summary message
-        super().__init__(f"key={key}, message={msg}, val={val}")
+        super().__init__(f"key={repr(key)}, message={repr(msg)}, val={repr(val)}")
 
     def __repr__(self):
-        return f"ASN1ObjValErr[key={self.key}, msg={self.msg}, val={self.val}]"
+        return f"ASN1ObjValErr[key={repr(self.key)}, msg={repr(self.msg)}, val={repr(self.val)}]"
 
 
 # error when encountering an unsupported case
