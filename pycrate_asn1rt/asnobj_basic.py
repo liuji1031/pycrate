@@ -57,7 +57,7 @@ Single value: int 0
     
     def _safechk_val(self, val):
         if val != 0:
-            raise(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
     
     ###
     # conversion between internal value and ASN.1 syntax
@@ -173,7 +173,7 @@ Single value: Python bool
     
     def _safechk_val(self, val):
         if not isinstance(val, bool):
-            raise(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
     
     ###
     # conversion between internal value and ASN.1 syntax
@@ -336,9 +336,9 @@ Specific attribute:
     def _safechk_val(self, val):
         if isinstance(val, str_types):
             if not self._cont:
-                raise(ASN1ObjErr('{0}: invalid named value, {1!r}'.format(self.fullname(), val)))
+                ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid named value, {1!r}'.format(self.fullname(), val)))
             elif val not in self._cont:
-                raise(ASN1ObjErr('{0}: invalid named value, {1!r}'.format(self.fullname(), val)))
+                ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid named value, {1!r}'.format(self.fullname(), val)))
         else:
             self._safechk_val_int(val)
     
@@ -1219,7 +1219,7 @@ Specific attribute:
     def _safechk_val(self, val):
         if not isinstance(val, str_types) or val not in self._cont:
             if self._ext is None or not re.match('_ext_[0-9]{1,}', val):
-                raise(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+                ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
     
     ###
     # conversion between internal value and ASN.1 syntax
@@ -1572,7 +1572,7 @@ class _OID(ASN1Obj):
     def _safechk_val(self, val):
         if not isinstance(val, tuple) or \
         not all([isinstance(i, integer_types) for i in val]):
-            raise(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
     
     ###
     # conversion between internal value and ASN.1 syntax

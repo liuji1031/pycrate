@@ -169,15 +169,15 @@ Single value: Python 2-tuple
             elif isinstance(val[0], str_types):
                 if re.match('_unk_[0-9]{1,}', val[0]):
                     if not isinstance(val[1], bytes_types):
-                        raise(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+                        ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
                 else:
                     self._get_val_obj(val[0])._safechk_val(val[1])
             elif isinstance(val[0], tuple) and len(val[0]) == 2:
                 self._get_val_obj(val[0])._safechk_val(val[1])
             else:
-                raise(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+                ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
         else:
-            raise(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
     
     def _safechk_bnd(self, val):
         if isinstance(val[0], ASN1Obj):

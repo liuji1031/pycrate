@@ -85,9 +85,9 @@ Specific attributes:
             if val[0] in self._cont:
                 self._cont[val[0]]._safechk_val(val[1])
             elif not re.match('_ext_[0-9]{1,}', val[0]) or not isinstance(val[1], bytes_types):
-                raise(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+                ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
         else:
-            raise(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
     
     def _safechk_bnd(self, val):
         if val[0] in self._cont:
@@ -737,20 +737,21 @@ class _CONSTRUCT(ASN1Obj):
     
     def _safechk_val(self, val, rec=True):
         if not isinstance(val, dict):
-            raise(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+            return
         for k in val:
             if k in self._cont:
                 if rec:
                     self._cont[k]._safechk_val(val[k])
             elif not re.match('_ext_[0-9]{1,}', k) or not isinstance(val[k], bytes_types):
-                raise(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+                ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
         self._safechk_valcompl(val)
     
     def _safechk_valcompl(self, val):
         # check for OPTIONAL / DEFAULT root values
         missing = set(self._root_mand) - set(val)
         if missing:
-            raise(ASN1ObjErr('{0}: missing mandatory value(s): {1},\
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: missing mandatory value(s): {1},\
                     {2!r}'.format(self.fullname(), missing, val)))
         # check for grouped extended values
         if self._ext and self._ext_group:
@@ -762,7 +763,7 @@ class _CONSTRUCT(ASN1Obj):
                     for ident, grp_comp in self._ext_group_obj[grp_id]._cont.items():
                         if not grp_comp._opt:
                             if ident not in ext:
-                                raise(ASN1ObjErr('{0}: missing extended value for group {1}, {2!r}'\
+                                ASN1Obj._errors.append(ASN1ObjErr('{0}: missing extended value for group {1}, {2!r}'\
                                       .format(self.fullname(), grp_id, val)))
                             else:
                                 ext.remove(ident)
@@ -2630,16 +2631,17 @@ class _CONSTRUCT_OF(ASN1Obj):
     
     def _safechk_val(self, val):
         if not isinstance(val, list):
-            raise(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(self.fullname(), val)))
+            return
         for v in val:
             self._cont._safechk_val(v)
-    
+
     def _safechk_bnd(self, val):
         ASN1Obj._safechk_bnd(self, val)
         if self._const_sz and \
         self._const_sz.ext is None and \
         len(val) not in self._const_sz:
-            raise(ASN1ObjErr('{0}: value out of size constraint, {1!r}'\
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: value out of size constraint, {1!r}'\
                   .format(self.fullname(), val)))
         for v in val:
             self._cont._safechk_bnd(v)

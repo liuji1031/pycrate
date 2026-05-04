@@ -138,11 +138,15 @@ class ASN1Obj(Element):
     _SAFE_BND    = True
     # this enables object's table constraint verification when using set_val()
     _SAFE_BNDTAB = True
-    
+
+    # accumulated validation errors; populated by _safechk_* methods when
+    # _SAFE_VAL / _SAFE_BND are enabled; cleared at the start of each set_val()
+    _errors = []
+
     #--------------------------------------------------------------------------#
     # class attributes, initialization and safe checking methods
     #--------------------------------------------------------------------------#
-    
+
     _name    = ''
     _mode    = MODE_TYPE
     _tag     = None
@@ -250,20 +254,20 @@ class ASN1Obj(Element):
     
     def _safechk_val_int(self, val):
         if not isinstance(val, integer_types):
-            raise(ASN1ObjErr('{0}: invalid INTEGER value, {1!r}'\
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid INTEGER value, {1!r}'\
                   .format(self.fullname(), val)))
-    
+
     def _safechk_val_real(self, val):
         if not isinstance(val, tuple) or len(val) != 3 or \
         not isinstance(val[0], integer_types) or \
         val[1] not in (2, 10) or \
         not isinstance(val[2], integer_types):
-            raise(ASN1ObjErr('{0}: invalid REAL value, {1!r}'\
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid REAL value, {1!r}'\
                   .format(self.fullname(), val)))
-    
+
     def _safechk_val_str(self, val):
         if not isinstance(val, str_types):
-            raise(ASN1ObjErr('{0}: invalid _String value, {1!r}'\
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid _String value, {1!r}'\
                   .format(self.fullname(), val)))
     
     def _safechk_set(self, s):
@@ -337,7 +341,7 @@ class ASN1Obj(Element):
         if self._const_val and \
         self._const_val.ext is None and \
         val not in self._const_val:
-            raise(ASN1ObjErr('{0}: {1} value out of constraint, {2!r}'\
+            ASN1Obj._errors.append(ASN1ObjErr('{0}: {1} value out of constraint, {2!r}'\
                   .format(self.fullname(), self.TYPE, val)))
         if self._SAFE_BNDTAB and self._const_tab and self._const_tab_at:
             # check val against a constraint defined within the table constraint
@@ -348,11 +352,11 @@ class ASN1Obj(Element):
                            % (self.__class__.__name__, self._name))
             elif self._mode == MODE_VALUE and const_val_type == CLASET_UNIQ:
                 if val != const_val:
-                    raise(ASN1ObjErr('{0}: value out of table constraint, {1!r}'\
+                    ASN1Obj._errors.append(ASN1ObjErr('{0}: value out of table constraint, {1!r}'\
                           .format(self.fullname(), val)))
             elif self._mode == MODE_SET or const_val_type == CLASET_MULT:
                 if val not in const_val:
-                    raise(ASN1ObjErr('{0}: value out of table constraint, {1!r}'\
+                    ASN1Obj._errors.append(ASN1ObjErr('{0}: value out of table constraint, {1!r}'\
                           .format(self.fullname(), val)))
     
     def _get_tab_obj(self):
@@ -1271,8 +1275,10 @@ class ASN1Obj(Element):
         self.set_val(newval)
     
     def set_val(self, val):
-        """sets the given value `val' into self
+        """sets the given value `val' into self; collects all constraint
+        violations into ASN1Obj._errors instead of raising on the first one
         """
+        ASN1Obj._errors = []
         self._val = val
         if self._SAFE_VAL:
             self._safechk_val(self._val)
