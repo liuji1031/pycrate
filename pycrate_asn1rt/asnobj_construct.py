@@ -88,6 +88,13 @@ Specific attributes:
                 self._cont[val[0]]._safechk_val(val[1], child_key)
             elif not re.match('_ext_[0-9]{1,}', val[0]) or not isinstance(val[1], bytes_types):
                 ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(_key, val)))
+        elif isinstance(val, dict) and len(val) == 1:
+            _k, _v = next(iter(val.items()))
+            if _k in self._cont:
+                child_key = "{0}.{1}".format(_key, _k) if _key else _k
+                self._cont[_k]._safechk_val(_v, child_key)
+            elif not re.match("_ext_[0-9]{1,}", _k) or not isinstance(_v, bytes_types):
+                ASN1Obj._errors.append(ASN1ObjErr("{0}: invalid value, {1!r}".format(_key, val)))
         else:
             ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid value, {1!r}'.format(_key, val)))
 
@@ -96,6 +103,13 @@ Specific attributes:
         if val[0] in self._cont:
             child_key = '{0}.{1}'.format(_key, val[0]) if _key else val[0]
             self._cont[val[0]]._safechk_bnd(val[1], child_key)
+        elif isinstance(val, dict) and len(val) == 1:
+            _k, _v = next(iter(val.items()))
+            if _k in self._cont:
+                child_key = "{0}.{1}".format(_key, _k) if _key else _k
+                self._cont[_k]._safechk_bnd(_v, child_key)
+        else:
+            pass
     
     ###
     # conversion between internal value and ASN.1 syntax
