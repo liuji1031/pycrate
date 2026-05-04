@@ -255,8 +255,7 @@ class ASN1Obj(Element):
     def _safechk_val_int(self, val, parent_key=''):
         if not isinstance(val, integer_types):
             _key = parent_key or self.fullname()
-            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid INTEGER value, {1!r}'\
-                  .format(_key, val)))
+            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='invalid INTEGER value'))
 
     def _safechk_val_real(self, val, parent_key=''):
         if not isinstance(val, tuple) or len(val) != 3 or \
@@ -264,14 +263,12 @@ class ASN1Obj(Element):
         val[1] not in (2, 10) or \
         not isinstance(val[2], integer_types):
             _key = parent_key or self.fullname()
-            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid REAL value, {1!r}'\
-                  .format(_key, val)))
+            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='invalid REAL value'))
 
     def _safechk_val_str(self, val, parent_key=''):
         if not isinstance(val, str_types):
             _key = parent_key or self.fullname()
-            ASN1Obj._errors.append(ASN1ObjErr('{0}: invalid _String value, {1!r}'\
-                  .format(_key, val)))
+            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='invalid _String value'))
     
     def _safechk_set(self, s):
         """
@@ -345,8 +342,7 @@ class ASN1Obj(Element):
         if self._const_val and \
         self._const_val.ext is None and \
         val not in self._const_val:
-            ASN1Obj._errors.append(ASN1ObjErr('{0}: {1} value out of constraint, {2!r}'\
-                  .format(_key, self.TYPE, val)))
+            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='{0} value out of constraint'.format(self.TYPE)))
         if self._SAFE_BNDTAB and self._const_tab and self._const_tab_at:
             # check val against a constraint defined within the table constraint
             const_val_type, const_val = self._get_tab_obj()
@@ -356,12 +352,10 @@ class ASN1Obj(Element):
                            % (self.__class__.__name__, self._name))
             elif self._mode == MODE_VALUE and const_val_type == CLASET_UNIQ:
                 if val != const_val:
-                    ASN1Obj._errors.append(ASN1ObjErr('{0}: value out of table constraint, {1!r}'\
-                          .format(_key, val)))
+                    ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='value out of table constraint'))
             elif self._mode == MODE_SET or const_val_type == CLASET_MULT:
                 if val not in const_val:
-                    ASN1Obj._errors.append(ASN1ObjErr('{0}: value out of table constraint, {1!r}'\
-                          .format(_key, val)))
+                    ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='value out of table constraint'))
     
     def _get_tab_obj(self):
         ret = (CLASET_NONE, None)

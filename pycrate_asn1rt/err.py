@@ -31,6 +31,8 @@
 # ASN.1 runtime errors
 #------------------------------------------------------------------------------#
 
+from typing import Any
+
 from pycrate_core.utils import PycrateErr
 
 
@@ -41,6 +43,26 @@ class ASN1Err(PycrateErr):
 # error when manipulating an existing ASN1 object
 class ASN1ObjErr(ASN1Err):
     pass
+
+class ASN1ObjValErr(ASN1ObjErr):
+    """Custom validation error."""
+    def __init__(self, key:str, val, msg:str):
+        """Initialization for the ASN1ObjValErr exception.
+
+        Args:
+            key: the key whose value is invalid
+            val: the invalid value
+            msg: the error message
+        """
+        self.key = key
+        self.val = val
+        self.msg = msg
+        # Initialize the base class with a summary message
+        super().__init__(f"key={key}, message={msg}, val={val}")
+
+    def __repr__(self):
+        return f"ASN1ObjValErr[key={self.key}, msg={self.msg}, val={self.val}]"
+
 
 # error when encountering an unsupported case
 class ASN1NotSuppErr(ASN1Err):
