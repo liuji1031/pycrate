@@ -1287,11 +1287,14 @@ class ASN1Obj(Element):
                     class-level name is used as the root.
         """
         ASN1Obj._errors = []
+        prev_val = self._val
         self._val = val
         if self._SAFE_VAL:
             self._safechk_val(self._val, parent_key)
         if self._SAFE_BND:
             self._safechk_bnd(self._val, parent_key)
+        if ASN1Obj._errors:
+            self._val = prev_val
     
     def unset_val(self):
         """reset internal values corresponding to self._val and its impacted 
