@@ -111,11 +111,17 @@ Specific attributes:
                 self._cont[_k]._safechk_bnd(_v, child_key)
         else:
             ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='not a dict or tuple for boundary check'))
-    
+
+    def _extract_ident_val(self):
+        """Return (ident, val) from _val regardless of tuple or dict form."""
+        if isinstance(self._val, dict):
+            return next(iter(self._val.items()))
+        return self._val[0], self._val[1]
+
     ###
     # conversion between internal value and ASN.1 syntax
     ###
-    
+
     def _from_asn1(self, txt):
         if not hasattr(self, '_ASN_RE'):
             items = list(self._cont.keys())
@@ -135,15 +141,15 @@ Specific attributes:
             raise(ASN1ASNDecodeErr('{0}: invalid text, {1!r}'.format(self.fullname(), txt)))
     
     def _to_asn1(self):
-        ident = self._val[0]
+        ident, val = self._extract_ident_val()
         if ident in self._cont:
-            self._cont[ident]._val = self._val[1]
+            self._cont[ident]._val = val
             _par = self._cont[ident]._parent
             self._cont[ident]._parent = self
             ret = '%s : %s' % (ident, self._cont[ident]._to_asn1())
             self._cont[ident]._parent = _par
         else:
-            ret = '%s : \'%s\'H' % (ident, hexlify(self._val[1]))
+            ret = '%s : \'%s\'H' % (ident, hexlify(val))
         return ret
     
     ###
@@ -277,24 +283,25 @@ Specific attributes:
     
     def _to_per_ws(self):
         GEN = []
+        ident, val = self._extract_ident_val()
         if self._ext is not None:
             # extensible type
-            if self._val[0] in self._root:
+            if ident in self._root:
                 # choice index in the root part
                 GEN.append( Uint('E', val=0, bl=1) )
                 if ASN1CodecPER.ALIGNED:
                     ASN1CodecPER._off[-1] += 1
-                ind = self._root.index(self._val[0])
+                ind = self._root.index(ident)
             else:
                 # extended choice index
                 GEN.append( Uint('E', val=1, bl=1) )
-                if self._val[0] in self._ext:
+                if ident in self._ext:
                     # set the chosen index and object
-                    ind = self._ext.index(self._val[0])
-                    Cho = self._cont[self._val[0]]
+                    ind = self._ext.index(ident)
+                    Cho = self._cont[ident]
                 else:
-                    # self._val[0][:5] == '_ext_'
-                    ind = int(self._val[0][5:])
+                    # ident[:5] == '_ext_'
+                    ind = int(ident[5:])
                     Cho = None
                 # encode the index
                 if ind < 64:
@@ -308,7 +315,7 @@ Specific attributes:
                     GEN.extend( ASN1CodecPER.encode_intunconst_ws(ind, 0, name='I') )
                 # encode the choice object
                 if Cho is not None:
-                    Cho._val = self._val[1]
+                    Cho._val = val
                     _par = Cho._parent
                     Cho._parent = self
                     if ASN1CodecPER.ALIGNED:
@@ -317,19 +324,19 @@ Specific attributes:
                         buf = Cho.to_uper_ws()
                     Cho._parent = _par
                 else:
-                    buf = self._val[1]
+                    buf = val
                 GEN.extend( ASN1CodecPER.encode_unconst_buf_ws(buf) )
                 self._struct = Envelope(self._name, GEN=tuple(GEN))
                 return self._struct
         else:
-            ind = self._root.index(self._val[0])
+            ind = self._root.index(ident)
         # choice index in the root part
         if len(self._root) > 1:
             # choice index encoded as a constrained integer
             GEN.extend( ASN1CodecPER.encode_intconst_ws(ind, self._const_ind, name='I') )
         # encode the chosen object
-        Cho = self._cont[self._val[0]]
-        Cho._val = self._val[1]
+        Cho = self._cont[ident]
+        Cho._val = val
         _par = Cho._parent
         Cho._parent = self
         GEN.append( Cho._to_per_ws() )
@@ -339,24 +346,25 @@ Specific attributes:
     
     def _to_per(self):
         GEN = []
+        ident, val = self._extract_ident_val()
         if self._ext is not None:
             # extensible type
-            if self._val[0] in self._root:
+            if ident in self._root:
                 # choice index in the root part
                 GEN.append( (T_UINT, 0, 1) )
                 if ASN1CodecPER.ALIGNED:
                     ASN1CodecPER._off[-1] += 1
-                ind = self._root.index(self._val[0])
+                ind = self._root.index(ident)
             else:
                 # extended choice index
                 GEN.append( (T_UINT, 1, 1) )
-                if self._val[0] in self._ext:
+                if ident in self._ext:
                     # set the chosen index and object
-                    ind = self._ext.index(self._val[0])
-                    Cho = self._cont[self._val[0]]
+                    ind = self._ext.index(ident)
+                    Cho = self._cont[ident]
                 else:
-                    # self._val[0][:5] == '_ext_'
-                    ind = int(self._val[0][5:])
+                    # ident[:5] == '_ext_'
+                    ind = int(ident[5:])
                     Cho = None
                 # encode the index
                 if ind < 64:
@@ -370,24 +378,24 @@ Specific attributes:
                     GEN.extend( ASN1CodecPER.encode_intunconst(ind, 0) )
                 # encode the choice object
                 if Cho is not None:
-                    Cho._val = self._val[1]
+                    Cho._val = val
                     if ASN1CodecPER.ALIGNED:
                         buf = Cho.to_aper()
                     else:
                         buf = Cho.to_uper()
                 else:
-                    buf = self._val[1]
+                    buf = val
                 GEN.extend( ASN1CodecPER.encode_unconst_buf(buf) )
                 return GEN
         else:
-            ind = self._root.index(self._val[0])
+            ind = self._root.index(ident)
         # choice index in the root part
         if len(self._root) > 1:
             # choice index encoded as a constrained integer
             GEN.extend( ASN1CodecPER.encode_intconst(ind, self._const_ind) )
         # encode the chosen object
-        Cho = self._cont[self._val[0]]
-        Cho._val = self._val[1]
+        Cho = self._cont[ident]
+        Cho._val = val
         _par = Cho._parent
         Cho._parent = self
         GEN.extend( Cho._to_per() )
@@ -529,13 +537,14 @@ Specific attributes:
                 self._val = (path, Cho._val)
     
     def _encode_ber_cont_ws(self):
-        if self._val[0][:5] == '_ext_':
+        ident, val = self._extract_ident_val()
+        if ident[:5] == '_ext_':
             # unknown extension re-encoding
-            cl, pc, tval = int(self._val[0][5:6]), int(self._val[0][6:7]), int(self._val[0][7:])
-            TLV = ASN1CodecBER.encode_tlv_ws(cl, tval, self._val[1], pc=pc)
+            cl, pc, tval = int(ident[5:6]), int(ident[6:7]), int(ident[7:])
+            TLV = ASN1CodecBER.encode_tlv_ws(cl, tval, val, pc=pc)
         else:
-            Cho = self._cont[self._val[0]]
-            Cho._val = self._val[1]
+            Cho = self._cont[ident]
+            Cho._val = val
             _par = Cho._parent
             Cho._parent = self
             TLV = Cho._to_ber_ws()
@@ -547,13 +556,14 @@ Specific attributes:
             return 1, lval, TLV
     
     def _encode_ber_cont(self):
-        if self._val[0][:5] == '_ext_':
+        ident, val = self._extract_ident_val()
+        if ident[:5] == '_ext_':
             # unknown extension re-encoding
-            cl, pc, tval = int(self._val[0][5:6]), int(self._val[0][6:7]), int(self._val[0][7:])
-            TLV = ASN1CodecBER.encode_tlv(cl, tval, self._val[1], pc=pc)
+            cl, pc, tval = int(ident[5:6]), int(ident[6:7]), int(ident[7:])
+            TLV = ASN1CodecBER.encode_tlv(cl, tval, val, pc=pc)
         else:
-            Cho = self._cont[self._val[0]]
-            Cho._val = self._val[1]
+            Cho = self._cont[ident]
+            Cho._val = val
             _par = Cho._parent
             Cho._parent = self
             TLV = Cho._to_ber()
@@ -587,9 +597,9 @@ Specific attributes:
                 self._val = ('_ext_%s' % ident, value)
         
         def _to_jval(self):
-            ident = self._val[0]
+            ident, val = self._extract_ident_val()
             if ident in self._cont:
-                self._cont[ident]._val = self._val[1]
+                self._cont[ident]._val = val
                 _par = self._cont[ident]._parent
                 self._cont[ident]._parent = self
                 ret = {ident : self._cont[ident]._to_jval()}
@@ -597,7 +607,7 @@ Specific attributes:
             else:
                 # reencoding unknown value
                 assert( ident[:5] == '_ext_' )
-                ret = {ident[5:] : self._val[1]}
+                ret = {ident[5:] : val}
             return ret
     
     ###
