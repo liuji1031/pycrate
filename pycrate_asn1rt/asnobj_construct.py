@@ -96,20 +96,21 @@ Specific attributes:
             elif not re.match("_ext_[0-9]{1,}", _k) or not isinstance(_v, bytes_types):
                 ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='invalid value'))
         else:
-            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='not a dict or tuple'))
+            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='not a dict or tuple for value check'))
 
     def _safechk_bnd(self, val, parent_key=''):
         _key = parent_key or self.fullname()
-        if val[0] in self._cont:
-            child_key = '{0}.{1}'.format(_key, val[0]) if _key else val[0]
-            self._cont[val[0]]._safechk_bnd(val[1], child_key)
+        if isinstance(val, tuple) and len(val)==2:
+            if val[0] in self._cont:
+                child_key = '{0}.{1}'.format(_key, val[0]) if _key else val[0]
+                self._cont[val[0]]._safechk_bnd(val[1], child_key)
         elif isinstance(val, dict) and len(val) == 1:
             _k, _v = next(iter(val.items()))
             if _k in self._cont:
                 child_key = "{0}.{1}".format(_key, _k) if _key else _k
                 self._cont[_k]._safechk_bnd(_v, child_key)
         else:
-            pass
+            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='not a dict or tuple for boundary check'))
     
     ###
     # conversion between internal value and ASN.1 syntax
