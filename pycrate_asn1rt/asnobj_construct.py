@@ -766,7 +766,7 @@ class _CONSTRUCT(ASN1Obj):
     def _safechk_val(self, val, parent_key='', rec=True):
         _key = parent_key or self.fullname()
         if not isinstance(val, dict):
-            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='invalid value'))
+            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='invalid value: not a dictionary'))
             return
         for k in val:
             if k in self._cont:
@@ -774,7 +774,7 @@ class _CONSTRUCT(ASN1Obj):
                     child_key = '{0}.{1}'.format(_key, k) if _key else k
                     self._cont[k]._safechk_val(val[k], child_key)
             elif not re.match('_ext_[0-9]{1,}', k) or not isinstance(val[k], bytes_types):
-                ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='invalid value'))
+                ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg=f'invalid key: {k}'))
         self._safechk_valcompl(val, _key)
 
     def _safechk_valcompl(self, val, parent_key=''):
@@ -2663,7 +2663,7 @@ class _CONSTRUCT_OF(ASN1Obj):
     def _safechk_val(self, val, parent_key=''):
         _key = parent_key or self.fullname()
         if not isinstance(val, list):
-            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='invalid value'))
+            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='invalid value: not a list'))
             return
         for i, v in enumerate(val):
             item_key = '{0}[{1}]'.format(_key, i) if _key else '[{0}]'.format(i)
