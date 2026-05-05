@@ -83,34 +83,33 @@ Specific attributes:
     def _safechk_val(self, val, parent_key=''):
         _key = parent_key or self.fullname()
         if isinstance(val, tuple) and len(val) == 2:
-            if val[0] in self._cont:
-                child_key = '{0}.{1}'.format(_key, val[0]) if _key else val[0]
-                self._cont[val[0]]._safechk_val(val[1], child_key)
-            elif not re.match('_ext_[0-9]{1,}', val[0]) or not isinstance(val[1], bytes_types):
-                ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='invalid value'))
+            k, v = val[0], val[1] 
         elif isinstance(val, dict) and len(val) == 1:
-            _k, _v = next(iter(val.items()))
-            if _k in self._cont:
-                child_key = "{0}.{1}".format(_key, _k) if _key else _k
-                self._cont[_k]._safechk_val(_v, child_key)
-            elif not re.match("_ext_[0-9]{1,}", _k) or not isinstance(_v, bytes_types):
-                ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='invalid value'))
+            k, v = next(iter(val.items()))
         else:
-            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='not a dict or tuple for value check'))
+            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='not a valid dict or tuple for CHOICE value check'))
+            return
+        if k in self._cont:
+            child_key = '{0}.{1}'.format(_key, k) if _key else k
+            self._cont[k]._safechk_val(v, child_key)
+        elif not re.match('_ext_[0-9]{1,}', k) or not isinstance(k, bytes_types):
+            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg=f'invalid key: {k}'))
+        else:
+            pass
+            
 
     def _safechk_bnd(self, val, parent_key=''):
         _key = parent_key or self.fullname()
         if isinstance(val, tuple) and len(val)==2:
-            if val[0] in self._cont:
-                child_key = '{0}.{1}'.format(_key, val[0]) if _key else val[0]
-                self._cont[val[0]]._safechk_bnd(val[1], child_key)
+            k, v = val[0], val[1]
         elif isinstance(val, dict) and len(val) == 1:
-            _k, _v = next(iter(val.items()))
-            if _k in self._cont:
-                child_key = "{0}.{1}".format(_key, _k) if _key else _k
-                self._cont[_k]._safechk_bnd(_v, child_key)
+            k, v = next(iter(val.items()))
         else:
             ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='not a dict or tuple for boundary check'))
+            return
+        if k in self._cont:
+            child_key = "{0}.{1}".format(_key, k) if _key else k
+            self._cont[k]._safechk_bnd(v, child_key)
 
     def _extract_ident_val(self):
         """Return (ident, val) from _val regardless of tuple or dict form."""
