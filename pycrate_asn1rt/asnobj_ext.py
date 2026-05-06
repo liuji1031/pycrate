@@ -162,19 +162,35 @@ Single value: Python 2-tuple
             self.__const_tr__ = const_tr
             return const_tr
     
+    def _extract_ref_val(self):
+        """Return (ref, val) from _val regardless of tuple or dict form."""
+        if isinstance(self._val, dict):
+            return next(iter(self._val.items()))
+        return self._val[0], self._val[1]
+
+    @staticmethod
+    def _extract_ref_val_static(val):
+        """Return (ref, inner_val) from val regardless of tuple or dict form."""
+        if isinstance(val, dict) and len(val) == 1:
+            return next(iter(val.items()))
+        elif isinstance(val, tuple) and len(val) == 2:
+            return val[0], val[1]
+        return None, None
+
     def _safechk_val(self, val, parent_key=''):
         _key = parent_key or self.fullname()
-        if isinstance(val, tuple) and len(val) == 2:
-            if isinstance(val[0], ASN1Obj):
-                val[0]._safechk_val(val[1], _key)
-            elif isinstance(val[0], str_types):
-                if re.match('_unk_[0-9]{1,}', val[0]):
-                    if not isinstance(val[1], bytes_types):
+        ref, inner_val = self._extract_ref_val_static(val)
+        if ref is not None:
+            if isinstance(ref, ASN1Obj):
+                ref._safechk_val(inner_val, _key)
+            elif isinstance(ref, str_types):
+                if re.match('_unk_[0-9]{1,}', ref):
+                    if not isinstance(inner_val, bytes_types):
                         ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='invalid value'))
                 else:
-                    self._get_val_obj(val[0])._safechk_val(val[1], _key)
-            elif isinstance(val[0], tuple) and len(val[0]) == 2:
-                self._get_val_obj(val[0])._safechk_val(val[1], _key)
+                    self._get_val_obj(ref)._safechk_val(inner_val, _key)
+            elif isinstance(ref, tuple) and len(ref) == 2:
+                self._get_val_obj(ref)._safechk_val(inner_val, _key)
             else:
                 ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='invalid value'))
         else:
@@ -182,10 +198,13 @@ Single value: Python 2-tuple
 
     def _safechk_bnd(self, val, parent_key=''):
         _key = parent_key or self.fullname()
-        if isinstance(val[0], ASN1Obj):
-            val[0]._safechk_bnd(val[1], _key)
-        elif val[0][:5] != '_unk_':
-            self._get_val_obj(val[0])._safechk_bnd(val[1], _key)
+        ref, inner_val = self._extract_ref_val_static(val)
+        if ref is None:
+            return
+        if isinstance(ref, ASN1Obj):
+            ref._safechk_bnd(inner_val, _key)
+        elif ref[:5] != '_unk_':
+            self._get_val_obj(ref)._safechk_bnd(inner_val, _key)
     
     ###
     # conversion between internal value and ASN.1 syntax
@@ -231,21 +250,22 @@ Single value: Python 2-tuple
                 ASN1NotSuppErr('{0}: reference parsing unsupported'.format(self.fullname()))
     
     def _to_asn1(self):
-        if isinstance(self._val[0], str_types):
-            if self._val[0][:5] == '_unk_':
+        ref, val = self._extract_ref_val()
+        if isinstance(ref, str_types):
+            if ref[:5] == '_unk_':
                 # HSTRING
-                return '\'%s\'H' % hexlify(self._val[1]).decode('ascii').upper()
+                return '\'%s\'H' % hexlify(val).decode('ascii').upper()
             else:
-                ident = self._val[0]
-                Obj   = self._get_val_obj(self._val[0])
-        elif isinstance(self._val[0], tuple):
-            ident = '.'.join(self._val[0])
-            Obj   = self._get_val_obj(self._val[0])
+                ident = ref
+                Obj   = self._get_val_obj(ref)
+        elif isinstance(ref, tuple):
+            ident = '.'.join(ref)
+            Obj   = self._get_val_obj(ref)
         else:
-            # self._val[0] is an ASN1Obj instance
-            ident = '%s.%s' % (self._val[0]._mod, self._val[0]._name)
-            Obj   = self._val[0]
-        Obj._val = self._val[1]
+            # ref is an ASN1Obj instance
+            ident = '%s.%s' % (ref._mod, ref._name)
+            Obj   = ref
+        Obj._val = val
         return '%s: %s' % (ident, Obj.to_asn1())
     
     ###
@@ -328,29 +348,29 @@ Single value: Python 2-tuple
         return
     
     def _to_per_ws(self):
-        if isinstance(self._val[0], ASN1Obj):
-            Obj = self._val[0]
+        ref, val = self._extract_ref_val()
+        if isinstance(ref, ASN1Obj):
+            Obj = ref
         else:
-            # isinstance(self._val[0], str_types)
-            if self._val[0][:5] == '_unk_':
-                GEN = ASN1CodecPER.encode_unconst_buf_ws(self._val[1])
+            if ref[:5] == '_unk_':
+                GEN = ASN1CodecPER.encode_unconst_buf_ws(val)
                 self._struct = Envelope(self._name, GEN=tuple(GEN))
                 return self._struct
-            Obj = self._get_val_obj(self._val[0])
-        Obj._val = self._val[1]
+            Obj = self._get_val_obj(ref)
+        Obj._val = val
         GEN = ASN1CodecPER.encode_unconst_open_ws(Obj)
         self._struct = Envelope(self._name, GEN=tuple(GEN))
         return self._struct
-    
+
     def _to_per(self):
-        if isinstance(self._val[0], ASN1Obj):
-            Obj = self._val[0]
+        ref, val = self._extract_ref_val()
+        if isinstance(ref, ASN1Obj):
+            Obj = ref
         else:
-            # isinstance(self._val[0], str_types)
-            if self._val[0][:5] == '_unk_':
-                return ASN1CodecPER.encode_unconst_buf(self._val[1])
-            Obj = self._get_val_obj(self._val[0])
-        Obj._val = self._val[1]
+            if ref[:5] == '_unk_':
+                return ASN1CodecPER.encode_unconst_buf(val)
+            Obj = self._get_val_obj(ref)
+        Obj._val = val
         ret = ASN1CodecPER.encode_unconst_open(Obj)
         return ret
     
@@ -538,48 +558,48 @@ Single value: Python 2-tuple
                       .format(self.fullname(), (cl, pc, tval), lval)))
     
     def _encode_ber_cont_ws(self):
-        if isinstance(self._val[0], ASN1Obj):
-            Obj = self._val[0]
-            Obj._val = self._val[1]
+        ref, val = self._extract_ref_val()
+        if isinstance(ref, ASN1Obj):
+            Obj = ref
+            Obj._val = val
             TLV = Obj._to_ber_ws()
         else:
-            # isinstance(self._val[0], str_bytes)
-            if self._val[0][:5] == '_unk_':
+            if ref[:5] == '_unk_':
                 try:
-                    cl, pc, tval = int(self._val[0][5:6]), \
-                                   int(self._val[0][6:7]), \
-                                   int(self._val[0][7:])
+                    cl, pc, tval = int(ref[5:6]), \
+                                   int(ref[6:7]), \
+                                   int(ref[7:])
                 except Exception:
                     cl, pc, tval = 0, 0, 4
-                TLV = ASN1CodecBER.encode_tlv_ws(cl, tval, self._val[1], pc=pc)
+                TLV = ASN1CodecBER.encode_tlv_ws(cl, tval, val, pc=pc)
             else:
-                Obj = self._get_val_obj(self._val[0])
-                Obj._val = self._val[1]
+                Obj = self._get_val_obj(ref)
+                Obj._val = val
                 TLV = Obj._to_ber_ws()
         if ASN1CodecBER.ENC_LUNDEF:
             return 1, -1, TLV
         else:
             lval = TLV.get_bl() >> 3
             return 1, lval, TLV
-    
+
     def _encode_ber_cont(self):
-        if isinstance(self._val[0], ASN1Obj):
-            Obj = self._val[0]
-            Obj._val = self._val[1]
+        ref, val = self._extract_ref_val()
+        if isinstance(ref, ASN1Obj):
+            Obj = ref
+            Obj._val = val
             TLV = Obj._to_ber()
         else:
-            # isinstance(self._val[0], str_bytes)
-            if self._val[0][:5] == '_unk_':
+            if ref[:5] == '_unk_':
                 try:
-                    cl, pc, tval = int(self._val[0][5:6]), \
-                                   int(self._val[0][6:7]), \
-                                   int(self._val[0][7:])
+                    cl, pc, tval = int(ref[5:6]), \
+                                   int(ref[6:7]), \
+                                   int(ref[7:])
                 except Exception:
                     cl, pc, tval = 0, 0, 4
-                TLV = ASN1CodecBER.encode_tlv(cl, tval, self._val[1], pc=pc)
+                TLV = ASN1CodecBER.encode_tlv(cl, tval, val, pc=pc)
             else:
-                Obj = self._get_val_obj(self._val[0])
-                Obj._val = self._val[1]
+                Obj = self._get_val_obj(ref)
+                Obj._val = val
                 TLV = Obj._to_ber()
         if ASN1CodecBER.ENC_LUNDEF:
             return 1, -1, TLV
@@ -632,16 +652,17 @@ Single value: Python 2-tuple
                     self._val = (Obj.TYPE, Obj._val)
         
         def _to_jval(self):
-            if isinstance(self._val[0], ASN1Obj):
-                Obj = self._val[0]
+            ref, val = self._extract_ref_val()
+            if isinstance(ref, ASN1Obj):
+                Obj = ref
             else:
-                if isinstance(self._val[0], str_types) and self._val[0][:5] == '_unk_':
-                    if isinstance(self._val[1], bytes_types):
-                        return hexlify(self._val[1]).decode()
+                if isinstance(ref, str_types) and ref[:5] == '_unk_':
+                    if isinstance(val, bytes_types):
+                        return hexlify(val).decode()
                     else:
-                        return self._val[1]
-                Obj = self._get_val_obj(self._val[0])
-            Obj._val = self._val[1]
+                        return val
+                Obj = self._get_val_obj(ref)
+            Obj._val = val
             return Obj._to_jval()
     
     ###
@@ -722,24 +743,26 @@ Single value: Python 2-tuple
         self._struct = Envelope(self._name, GEN=tuple(GEN))
     
     def _to_oer(self):
-        if isinstance(self._val[0], ASN1Obj):
-            Obj = self._val[0]
+        ref, val = self._extract_ref_val()
+        if isinstance(ref, ASN1Obj):
+            Obj = ref
         else:
-            if self._val[0][:5] == '_unk_':
-                return ASN1CodecOER.encode_open_type(self._val[1])
-            Obj = self._get_val_obj(self._val[0])
-        Obj._val = self._val[1]
+            if ref[:5] == '_unk_':
+                return ASN1CodecOER.encode_open_type(val)
+            Obj = self._get_val_obj(ref)
+        Obj._val = val
         return ASN1CodecOER.encode_open_type(Obj.to_oer())
-    
+
     def _to_oer_ws(self):
-        if isinstance(self._val[0], ASN1Obj):
-            Obj = self._val[0]
+        ref, val = self._extract_ref_val()
+        if isinstance(ref, ASN1Obj):
+            Obj = ref
         else:
-            if self._val[0][:5] == '_unk_':
-                _gen = ASN1CodecOER.encode_open_type_ws(self._val[1])
+            if ref[:5] == '_unk_':
+                _gen = ASN1CodecOER.encode_open_type_ws(val)
                 return Envelope(self._name, GEN=(_gen,))
-            Obj = self._get_val_obj(self._val[0])
-        Obj._val = self._val[1]
+            Obj = self._get_val_obj(ref)
+        Obj._val = val
         _gen = ASN1CodecOER.encode_open_type_ws(Obj.to_oer())
         self._struct = Envelope(self._name, GEN=(_gen,))
         return self._struct
