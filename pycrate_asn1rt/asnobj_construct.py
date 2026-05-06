@@ -614,16 +614,17 @@ Specific attributes:
     ###
     
     def _oer_tag_class(self):
+        ident, val = self._extract_ident_val()
         try:
-            tag_class, tag = next(t for t, ident in self._cont_tags.items()
-                                  if ident == self._val[0])
+            tag_class, tag = next(t for t, id_ in self._cont_tags.items()
+                                  if id_ == ident)
         except StopIteration:
-            if self._val[0][:5] == '_ext_':
+            if ident[:5] == '_ext_':
                 # unknown extension re-encoding
-                tag_class, _, tag = int(self._val[0][5:6]), int(
-                    self._val[0][6:7]), int(self._val[0][7:])
+                tag_class, _, tag = int(ident[5:6]), int(
+                    ident[6:7]), int(ident[7:])
             else:
-                raise(ASN1OEREncodeErr('Unknown tag for item {0}'.format(self._val[0])))
+                raise(ASN1OEREncodeErr('Unknown tag for item {0}'.format(ident)))
         try:
             tag_class = ASN1CodecOER.TagClassLUT[tag_class]
         except KeyError:
@@ -632,49 +633,51 @@ Specific attributes:
         return tag_class, tag
 
     def _to_oer(self):
+        ident, val = self._extract_ident_val()
         tag_class, tag = self._oer_tag_class()
 
         # Tag
         temp = ASN1CodecOER.encode_tag(tag, tag_class)
 
-        if self._val[0] in self._root:
+        if ident in self._root:
             # Normal encoding
             # Value
-            Cho = self._cont[self._val[0]]
-            Cho._val = self._val[1]
+            Cho = self._cont[ident]
+            Cho._val = val
             temp.extend(Cho._to_oer())
 
         elif self._ext is not None:
             # Extensible type
-            if self._val[0] in self._ext:
-                Cho = self._cont[self._val[0]]
-                Cho._val = self._val[1]
+            if ident in self._ext:
+                Cho = self._cont[ident]
+                Cho._val = val
                 temp.extend(ASN1CodecOER.encode_open_type(Cho.to_oer()))
             else:
-                temp.extend(ASN1CodecOER.encode_open_type(self._val[1]))
+                temp.extend(ASN1CodecOER.encode_open_type(val))
 
         return temp
 
     def _to_oer_ws(self):
+        ident, val = self._extract_ident_val()
         tag_class, tag = self._oer_tag_class()
 
         # Tag
         temp = [ASN1CodecOER.encode_tag_ws(tag, tag_class)]
 
-        if self._val[0] in self._root:
+        if ident in self._root:
             # Normal encoding
             # Value
-            Cho = self._cont[self._val[0]]
-            Cho._val = self._val[1]
+            Cho = self._cont[ident]
+            Cho._val = val
             temp.append(Cho._to_oer_ws())
         elif self._ext is not None:
             # Extensible type
-            if self._val[0] in self._ext:
-                Cho = self._cont[self._val[0]]
-                Cho._val = self._val[1]
+            if ident in self._ext:
+                Cho = self._cont[ident]
+                Cho._val = val
                 temp.append(ASN1CodecOER.encode_open_type_ws(Cho.to_oer()))
             else:
-                temp.append(ASN1CodecOER.encode_open_type_ws(self._val[1]))
+                temp.append(ASN1CodecOER.encode_open_type_ws(val))
 
         self._struct = Envelope(self._name, GEN=tuple(temp))
         return self._struct
