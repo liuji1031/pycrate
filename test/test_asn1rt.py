@@ -2709,6 +2709,52 @@ def test_bitstr_set_val_string():
     print('[+] test_bitstr_set_val_string: ok')
 
 
+def test_octstr_set_val_string():
+    """Test that OCT_STR.set_val() accepts hex strings."""
+    o = OCT_STR(name='T', mode=MODE_TYPE)
+
+    # hex string
+    o.set_val('3C96')
+    assert o._val == b'\x3c\x96', o._val
+
+    # empty string
+    o.set_val('')
+    assert o._val == b'', o._val
+
+    # longer hex
+    o.set_val('DEADBEEF')
+    assert o._val == b'\xde\xad\xbe\xef', o._val
+
+    # odd-length hex string should not convert (not valid octet boundary)
+    o2 = OCT_STR(name='O2', mode=MODE_TYPE)
+    try:
+        o2.set_val('ABC')
+        assert False, 'expected error for odd-length hex string'
+    except Exception:
+        pass
+
+    # constrained OCT_STR – disambiguate via _const_sz
+    o3 = OCT_STR(name='O3', mode=MODE_TYPE)
+    o3._const_sz = ASN1Set(rv=[1], rr=[], ev=None, er=[])
+    # '10110001' with 1-byte constraint: 8 binary digits = 1 byte matches, 4 hex bytes doesn't
+    o3.set_val('10110001')
+    assert o3._val == b'\xb1', o3._val
+
+    # ambiguous '0011' with 2-byte constraint: 2 hex bytes matches, not binary
+    o4 = OCT_STR(name='O4', mode=MODE_TYPE)
+    o4._const_sz = ASN1Set(rv=[2], rr=[], ev=None, er=[])
+    o4.set_val('0011')
+    assert o4._val == b'\x00\x11', o4._val
+
+    # encoding round-trip: string val survives to _to_asn1
+    o5 = OCT_STR(name='O5', mode=MODE_TYPE)
+    o5._val = 'AABB'
+    asn1_out = o5._to_asn1()
+    assert 'AABB' in asn1_out, asn1_out
+
+    print('[+] test_octstr_set_val_string: ok')
+
+
 def test_perf_asn1rt():
     
     _load_rt_base()
