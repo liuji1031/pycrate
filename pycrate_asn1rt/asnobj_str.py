@@ -60,26 +60,6 @@ _RE_BIN = re.compile(r'^[01]+$')
 _RE_HEX = re.compile(r'^[0-9a-fA-F]+$')
 
 
-def _bitstr_str_to_tuple(val, expected_bits: int | None=None):
-    """Convert a binary or hex string to a (uint, bit_length) tuple.
-
-    Uses *expected_bits* (from ``_const_sz``) to disambiguate strings that
-    could be either format (i.e. strings containing only ``0`` and ``1``).
-    """
-    if not val:
-        return (0, 0)
-    if not _RE_HEX.match(val):  # does not fix hex pattern, can't be valid
-        return None
-    if not _RE_BIN.match(val):
-        # contains digits outside 0/1 — unambiguously hex
-        return (int(val, 16), len(val) * 4)
-    # ambiguous – only 0s and 1s – use constraint to decide
-    if expected_bits is not None:
-        if len(val) * 4 == expected_bits:  # fit bit length expected from hex
-            return (int(val, 16), len(val) * 4)
-    return (int(val, 2), len(val))  # return binary by default
-
-
 class BIT_STR(ASN1Obj):
     __doc__ = """
 ASN.1 basic type BIT STRING object
@@ -145,9 +125,28 @@ Specific constraints attributes:
                 raise(ASN1ObjErr('{0}: invalid object reference, {1!r}'\
                       .format(self.fullname(), ref)))
     
+    def _convert_str_to_tuple(self, val, expected_bits: int | None=None):
+        """Convert a binary or hex string to a (uint, bit_length) tuple.
+
+        Uses *expected_bits* (from ``_const_sz``) to disambiguate strings that
+        could be either format (i.e. strings containing only ``0`` and ``1``).
+        """
+        if not val:
+            return (0, 0)
+        if not _RE_HEX.match(val):  # does not fix hex pattern, can't be valid
+            return None
+        if not _RE_BIN.match(val):
+            # contains digits outside 0/1 — unambiguously hex
+            return (int(val, 16), len(val) * 4)
+        # ambiguous – only 0s and 1s – use constraint to decide
+        if expected_bits is not None:
+            if len(val) * 4 == expected_bits:  # fit bit length expected from hex
+                return (int(val, 16), len(val) * 4)
+        return (int(val, 2), len(val))  # return binary by default
+
     def _convert_str_val(self, val):
         if isinstance(val, str_types):
-            converted = _bitstr_str_to_tuple(val.strip(), self._expected_bits())
+            converted = self._convert_str_to_tuple(val.strip(), self._expected_bits())
             if converted is not None:
                 return converted
         return val
@@ -1301,12 +1300,45 @@ Specific constraints attributes:
                 raise(ASN1ObjErr('{0}: invalid object reference, {1!r}'\
                       .format(self.fullname(), ref)))
     
+    def _expected_bytes(self):
+        if self._const_sz and self._const_sz._rv:
+            return self._const_sz._rv[0]
+        return None
+
+    def _convert_str_val(self, val):
+        if isinstance(val, str_types):
+            val_stripped = val.strip()
+            if not val_stripped:
+                return b''
+            if not _RE_HEX.match(val_stripped):
+                return val
+            if not _RE_BIN.match(val_stripped):
+                # unambiguously hex
+                if len(val_stripped) % 2 == 0:
+                    return unhexlify(val_stripped)
+                return val
+            # ambiguous – use constraint to decide
+            expected = self._expected_bytes()
+            if expected is not None:
+                if len(val_stripped) == 8*expected:
+                    # binary interpretation matches constraint
+                    n = int(val_stripped, 2)
+                    return n.to_bytes(expected, 'big')
+            # default to hex
+            if len(val_stripped) % 2 == 0:
+                return unhexlify(val_stripped)
+        return val
+
     def _safechk_val(self, val, parent_key=''):
+        val = self._convert_str_val(val)
+        self._val = val
         if not isinstance(val, bytes_types):
             self._get_val_obj(val[0])._safechk_val(val[1], parent_key or self.fullname())
 
     def _safechk_bnd(self, val, parent_key=''):
         _key = parent_key or self.fullname()
+        val = self._convert_str_val(val)
+        self._val = val
         if isinstance(val, bytes_types):
             # check val against potential constraints
             ASN1Obj._safechk_bnd(self, val, _key)
@@ -1361,6 +1393,8 @@ Specific constraints attributes:
         raise(ASN1ASNDecodeErr('{0}: invalid text, {1!r}'.format(self.fullname(), txt)))
     
     def _to_asn1(self):
+        if isinstance(self._val, str_types):
+            self._val = self._convert_str_val(self._val)
         if isinstance(self._val, bytes_types):
             # HSTRING
             ret = '\'%s\'H' % hexlify(self._val).decode('ascii').upper()
@@ -1530,6 +1564,8 @@ Specific constraints attributes:
     # TODO: _to_per_ws() does not copy the structure of a potential wrapped
     # object into self._struct
     def _to_per_ws(self):
+        if isinstance(self._val, str_types):
+            self._val = self._convert_str_val(self._val)
         if not isinstance(self._val, bytes_types):
             buf, wrapped = self.__to_per_ws_buf()
         else:
@@ -1593,6 +1629,8 @@ Specific constraints attributes:
         return buf, Cont
     
     def _to_per(self):
+        if isinstance(self._val, str_types):
+            self._val = self._convert_str_val(self._val)
         if not isinstance(self._val, bytes_types):
             buf, wrapped = self.__to_per_buf()
         else:
@@ -1764,6 +1802,8 @@ Specific constraints attributes:
             self._val = buf
     
     def _encode_ber_cont_ws(self):
+        if isinstance(self._val, str_types):
+            self._val = self._convert_str_val(self._val)
         buf = self.__to_ber_buf()
         if ASN1CodecBER.ENC_OSTR_FRAG and len(buf) > ASN1CodecBER.ENC_OSTR_FRAG:
             # fragmentation required
@@ -1782,6 +1822,8 @@ Specific constraints attributes:
             return 0, lval, Buf('V', val=buf, bl=8*lval, rep=REPR_HEX)
     
     def _encode_ber_cont(self):
+        if isinstance(self._val, str_types):
+            self._val = self._convert_str_val(self._val)
         buf = self.__to_ber_buf()
         if ASN1CodecBER.ENC_OSTR_FRAG and len(buf) > ASN1CodecBER.ENC_OSTR_FRAG:
             # fragmentation required
@@ -1851,6 +1893,8 @@ Specific constraints attributes:
                 self._val = (ident, Cont._val)
         
         def _to_jval(self):
+            if isinstance(self._val, str_types):
+                self._val = self._convert_str_val(self._val)
             if isinstance(self._val, bytes_types):
                 return hexlify(self._val).decode()
             else:
@@ -1948,6 +1992,8 @@ Specific constraints attributes:
         return buf, Cont
     
     def _to_oer(self):
+        if isinstance(self._val, str_types):
+            self._val = self._convert_str_val(self._val)
         if not isinstance(self._val, bytes_types):
             buf, wrapped = self.__to_coer_buf()
         else:
@@ -1965,6 +2011,8 @@ Specific constraints attributes:
         return GEN
     
     def _to_oer_ws(self):
+        if isinstance(self._val, str_types):
+            self._val = self._convert_str_val(self._val)
         if not isinstance(self._val, bytes_types):
             buf, wrapped = self.__to_coer_ws_buf()
         else:
