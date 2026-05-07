@@ -147,6 +147,12 @@ Specific constraints attributes:
     
     def _safechk_val(self, val, parent_key=''):
         _key = parent_key or self.fullname()
+        # check if string type is passed in, and convert
+        # to tuple representation
+        if isinstance(val, str_types):
+            converted = _bitstr_str_to_tuple(val.strip(), self._expected_bits())
+            if converted is not None:
+                val = converted
         if isinstance(val, tuple) and len(val) == 2:
             if isinstance(val[0], integer_types):
                 # raw value
@@ -186,13 +192,6 @@ Specific constraints attributes:
         if self._const_sz and self._const_sz._rv:
             return self._const_sz._rv[0]
         return None
-
-    def set_val(self, val, parent_key=''):
-        if isinstance(val, str_types):
-            converted = _bitstr_str_to_tuple(val.strip(), self._expected_bits())
-            if converted is not None:
-                val = converted
-        ASN1Obj.set_val(self, val, parent_key)
 
     def get_names(self):
         """Returns the list of names from the NamedBitList corresponding to the
