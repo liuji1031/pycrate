@@ -1271,6 +1271,13 @@ class ASN1Obj(Element):
                 assert()
             newval = parval
         self.set_val(newval)
+
+    def preprocess_val(self, val):
+        """custom preprocess step
+
+        Default: return unchanged
+        """
+        return val
     
     def set_val(self, val, parent_key=''):
         """sets the given value `val' into self; collects all constraint
@@ -1282,7 +1289,7 @@ class ASN1Obj(Element):
         """
         ASN1Obj._errors = []
         prev_val = self._val
-        self._val = val
+        self._val = self.preprocess_val(val)
         if self._SAFE_VAL:
             self._safechk_val(self._val, parent_key)
         if self._SAFE_BND:

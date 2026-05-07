@@ -187,12 +187,16 @@ Specific constraints attributes:
             return self._const_sz._rv[0]
         return None
 
-    def set_val(self, val, parent_key=''):
+    def preprocess_val(self, val):
+        """Override parent preprocess method.
+        
+        Convert str type input to 2-tuple form if applicable.
+        """
         if isinstance(val, str_types):
             converted = _bitstr_str_to_tuple(val.strip(), self._expected_bits())
             if converted is not None:
                 val = converted
-        ASN1Obj.set_val(self, val, parent_key)
+        return val
 
     def get_names(self):
         """Returns the list of names from the NamedBitList corresponding to the
