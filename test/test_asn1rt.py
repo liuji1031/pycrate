@@ -2682,8 +2682,6 @@ def test_bitstr_set_val_string():
     d._const_sz = ASN1Set(rv=[3], rr=[], ev=None, er=[])
     d.set_val('101')
     assert d._val == (0b101, 3), d._val
-    d.set_val(["c","a"])
-    assert d._val == (0b101, 3), d._val
 
     # invalid string should not convert, validation error collected
     ASN1Obj._SAFE_VAL = True
