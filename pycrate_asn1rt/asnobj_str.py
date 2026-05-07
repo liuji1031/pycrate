@@ -196,17 +196,6 @@ Specific constraints attributes:
             return self._const_sz._rv[0]
         return None
 
-    def preprocess_val(self, val):
-        """Override parent preprocess method.
-        
-        Convert str type input to 2-tuple form if applicable.
-        """
-        if isinstance(val, str_types):
-            converted = _bitstr_str_to_tuple(val.strip(), self._expected_bits())
-            if converted is not None:
-                val = converted
-        return val
-
     def get_names(self):
         """Returns the list of names from the NamedBitList corresponding to the
         internal value currently set
@@ -310,6 +299,8 @@ Specific constraints attributes:
         raise(ASN1ASNDecodeErr('{0}: invalid text, {1!r}'.format(self.fullname(), txt)))
     
     def _to_asn1(self):
+        if isinstance(self._val, str_types):
+            self._val = self._convert_str_val(self._val)
         if isinstance(self._val, set):
             self._names_to_val()
         if isinstance(self._val[0], integer_types):
@@ -582,6 +573,8 @@ Specific constraints attributes:
     # TODO: _to_per_ws() does not copy the structure of a potential wrapped
     # object into self._struct
     def _to_per_ws(self):
+        if isinstance(self._val, str_types):
+            self._val = self._convert_str_val(self._val)
         if isinstance(self._val, set):
             self._names_to_val()
         buf, ldet = self.__to_per_ws_buf()
@@ -676,6 +669,8 @@ Specific constraints attributes:
         self._struct = Envelope(self._name, GEN=tuple(GEN))
     
     def _to_per(self):
+        if isinstance(self._val, str_types):
+            self._val = self._convert_str_val(self._val)
         if isinstance(self._val, set):
             self._names_to_val()
         buf, ldet = self.__to_per_buf()
@@ -922,6 +917,8 @@ Specific constraints attributes:
             self.__val_from_buf(buf, bl)
     
     def _encode_ber_cont_ws(self):
+        if isinstance(self._val, str_types):
+            self._val = self._convert_str_val(self._val)
         if isinstance(self._val, set):
             self._names_to_val()
         buf, bl = self.__to_ber_buf()
@@ -950,6 +947,8 @@ Specific constraints attributes:
                                                Buf('BS', val=buf, bl=8*len(buf), rep=REPR_HEX)))
     
     def _encode_ber_cont(self):
+        if isinstance(self._val, str_types):
+            self._val = self._convert_str_val(self._val)
         if isinstance(self._val, set):
             self._names_to_val()
         buf, bl = self.__to_ber_buf()
@@ -1048,6 +1047,8 @@ Specific constraints attributes:
                 self._val = (val, bl)
         
         def _to_jval(self):
+            if isinstance(self._val, str_types):
+                self._val = self._convert_str_val(self._val)
             if isinstance(self._val, set):
                 self._names_to_val()
             if not isinstance(self._val[0], integer_types):
@@ -1086,6 +1087,8 @@ Specific constraints attributes:
     ###
     
     def _to_oer(self):
+        if isinstance(self._val, str_types):
+            self._val = self._convert_str_val(self._val)
         if isinstance(self._val, set):
             self._names_to_val()
         
@@ -1131,6 +1134,8 @@ Specific constraints attributes:
         return GEN
     
     def _to_oer_ws(self):
+        if isinstance(self._val, str_types):
+            self._val = self._convert_str_val(self._val)
         if isinstance(self._val, set):
             self._names_to_val()
         
