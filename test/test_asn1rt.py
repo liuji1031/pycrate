@@ -2690,6 +2690,23 @@ def test_bitstr_set_val_string():
     assert ASN1Obj._errors, 'expected validation error for invalid string'
     ASN1Obj._SAFE_VAL = False
 
+    # nested: BIT_STR inside a SEQUENCE, set via parent set_val
+    seq = SEQ(name='TestSeq', mode=MODE_TYPE)
+    flags = BIT_STR(name='flags', mode=MODE_TYPE)
+    flags._const_sz = ASN1Set(rv=[12], rr=[], ev=None, er=[])
+    seq._cont = ASN1Dict([('flags', flags)])
+    seq._root_comp = ['flags']
+    seq._root_mand = ['flags']
+    seq._root_opt = []
+    seq._ext = None
+    seq._ext_group = None
+
+    ASN1Obj._SAFE_VAL = True
+    seq.set_val({'flags': '110011001100'})
+    assert not ASN1Obj._errors, ASN1Obj._errors
+    assert seq._val == {'flags': (0b110011001100, 12)}, seq._val
+    ASN1Obj._SAFE_VAL = False
+
     print('[+] test_bitstr_set_val_string: ok')
 
 
