@@ -145,8 +145,17 @@ Specific constraints attributes:
                 raise(ASN1ObjErr('{0}: invalid object reference, {1!r}'\
                       .format(self.fullname(), ref)))
     
+    def _convert_str_val(self, val):
+        if isinstance(val, str_types):
+            converted = _bitstr_str_to_tuple(val.strip(), self._expected_bits())
+            if converted is not None:
+                return converted
+        return val
+
     def _safechk_val(self, val, parent_key=''):
         _key = parent_key or self.fullname()
+        val = self._convert_str_val(val)
+        self._val = val
         if isinstance(val, tuple) and len(val) == 2:
             if isinstance(val[0], integer_types):
                 # raw value
