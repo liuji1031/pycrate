@@ -174,6 +174,8 @@ Specific constraints attributes:
 
     def _safechk_bnd(self, val, parent_key=''):
         _key = parent_key or self.fullname()
+        val = self._convert_str_val(val)
+        self._val = val
         if isinstance(val, tuple):
             if isinstance(val[0], integer_types):
                 # check val against potential constraints
