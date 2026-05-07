@@ -2647,6 +2647,54 @@ def test_X509():
     _test_X509()
 
 
+def test_bitstr_set_val_string():
+    """Test that BIT_STR.set_val() accepts binary and hex strings."""
+    # unconstrained BIT STRING
+    b = BIT_STR(name='T', mode=MODE_TYPE)
+
+    # binary string
+    b.set_val('1101')
+    assert b._val == (0b1101, 4), b._val
+
+    # hex string (unambiguous – contains non-binary digit)
+    b.set_val('3C')
+    assert b._val == (0x3C, 8), b._val
+
+    # empty string
+    b.set_val('')
+    assert b._val == (0, 0), b._val
+
+    # constrained BIT STRING – disambiguate via _const_sz
+    c = BIT_STR(name='C', mode=MODE_TYPE)
+    c._const_sz = ASN1Set(rv=[12], rr=[], ev=None, er=[])
+
+    # '100' with 12-bit constraint: len('100')*4==12 matches, len('100')==3 doesn't
+    c.set_val('100')
+    assert c._val == (0x100, 12), c._val
+
+    # '110011001100' with 12-bit constraint: len==12 matches binary
+    c.set_val('110011001100')
+    assert c._val == (0b110011001100, 12), c._val
+
+    # named bits with string round-trip
+    d = BIT_STR(name='NamedBitString', mode=MODE_TYPE)
+    d._cont = ASN1Dict([('a', 0), ('b', 1), ('c', 2)])
+    d._const_sz = ASN1Set(rv=[3], rr=[], ev=None, er=[])
+    d.set_val('101')
+    assert d._val == (0b101, 3), d._val
+    d.set_val(["c","a"])
+    assert d._val == (0b101, 3), d._val
+
+    # invalid string should not convert, validation error collected
+    ASN1Obj._SAFE_VAL = True
+    e = BIT_STR(name='E', mode=MODE_TYPE)
+    e.set_val('XYZ')
+    assert ASN1Obj._errors, 'expected validation error for invalid string'
+    ASN1Obj._SAFE_VAL = False
+
+    print('[+] test_bitstr_set_val_string: ok')
+
+
 def test_perf_asn1rt():
     
     _load_rt_base()

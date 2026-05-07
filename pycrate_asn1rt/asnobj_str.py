@@ -56,6 +56,30 @@ except ImportError:
 # BIT STRING and OCTET STRING
 #------------------------------------------------------------------------------#
 
+_RE_BIN = re.compile(r'^[01]+$')
+_RE_HEX = re.compile(r'^[0-9a-fA-F]+$')
+
+
+def _bitstr_str_to_tuple(val, expected_bits: int | None=None):
+    """Convert a binary or hex string to a (uint, bit_length) tuple.
+
+    Uses *expected_bits* (from ``_const_sz``) to disambiguate strings that
+    could be either format (i.e. strings containing only ``0`` and ``1``).
+    """
+    if not val:
+        return (0, 0)
+    if not _RE_HEX.match(val):  # does not fix hex pattern, can't be valid
+        return None
+    if not _RE_BIN.match(val):
+        # contains digits outside 0/1 — unambiguously hex
+        return (int(val, 16), len(val) * 4)
+    # ambiguous – only 0s and 1s – use constraint to decide
+    if expected_bits is not None:
+        if len(val) * 4 == expected_bits:  # fit bit length expected from hex
+            return (int(val, 16), len(val) * 4)
+    return (int(val, 2), len(val))  # return binary by default
+
+
 class BIT_STR(ASN1Obj):
     __doc__ = """
 ASN.1 basic type BIT STRING object
@@ -157,6 +181,18 @@ Specific constraints attributes:
                     ident = self._const_cont.TYPE
                 if val[0] != ident:
                     ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='value out of containing constraint'))
+
+    def _expected_bits(self):
+        if self._const_sz and self._const_sz._rv:
+            return self._const_sz._rv[0]
+        return None
+
+    def set_val(self, val, parent_key=''):
+        if isinstance(val, str_types):
+            converted = _bitstr_str_to_tuple(val.strip(), self._expected_bits())
+            if converted is not None:
+                val = converted
+        ASN1Obj.set_val(self, val, parent_key)
 
     def get_names(self):
         """Returns the list of names from the NamedBitList corresponding to the
