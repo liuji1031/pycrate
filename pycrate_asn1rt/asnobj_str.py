@@ -28,6 +28,7 @@
 # *--------------------------------------------------------
 #*/
 
+from math import ceil
 from .utils   import *
 from .err     import *
 from .dictobj import *
@@ -133,16 +134,32 @@ Specific constraints attributes:
         """
         if not val:
             return (0, 0)
-        if not _RE_HEX.match(val):  # does not fix hex pattern, can't be valid
+        if not _RE_HEX.match(val):
             return None
         if not _RE_BIN.match(val):
             # contains digits outside 0/1 — unambiguously hex
-            return (int(val, 16), len(val) * 4)
+            return self._parse_hex_to_tuple(val, expected_bits)
         # ambiguous – only 0s and 1s – use constraint to decide
         if expected_bits is not None:
-            if len(val) * 4 == expected_bits:  # fit bit length expected from hex
-                return (int(val, 16), len(val) * 4)
-        return (int(val, 2), len(val))  # return binary by default
+            is_bin = len(val) == expected_bits
+            expected_hex_len = ceil(expected_bits / 8) * 2  # ceil(expected_bits/8)*2
+            is_hex = len(val) == expected_hex_len
+            if is_bin and not is_hex:
+                return (int(val, 2), len(val))
+            if is_hex and not is_bin:
+                return self._parse_hex_to_tuple(val, expected_bits)
+            # both match only when expected_bits==2 and val=='00', result is the same either way
+        return (int(val, 2), len(val))
+
+    @staticmethod
+    def _parse_hex_to_tuple(val, expected_bits=None):
+        raw = int(val, 16)
+        total_bits = len(val) * 4
+        if expected_bits is not None:
+            padding = total_bits - expected_bits
+            if padding > 0:
+                return (raw >> padding, expected_bits)
+        return (raw, total_bits)
 
     def _convert_str_val(self, val):
         if isinstance(val, str_types):
@@ -1322,10 +1339,13 @@ Specific constraints attributes:
             # ambiguous – use constraint to decide
             expected = self._expected_bytes()
             if expected is not None:
-                if len(val_stripped) == 8*expected:
-                    # binary interpretation matches constraint
+                is_bin = len(val_stripped) == 8 * expected
+                is_hex = len(val_stripped) == 2 * expected
+                if is_bin and not is_hex:
                     n = int(val_stripped, 2)
                     return n.to_bytes(expected, 'big')
+                if is_hex and not is_bin:
+                    return unhexlify(val_stripped)
             # default to hex
             if len(val_stripped) % 2 == 0:
                 return unhexlify(val_stripped)
