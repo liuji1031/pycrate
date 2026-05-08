@@ -46,22 +46,29 @@ class ASN1ObjErr(ASN1Err):
 
 class ASN1ObjValErr(ASN1ObjErr):
     """Custom validation error."""
-    def __init__(self, key:str, val, msg:str):
+    INVALID_VALUE = 0
+    MISSING_MANDATORY_KEY = 1
+    INVALID_KEY = 2
+    OUT_OF_CONSTRAINT = 3
+    INVALID_STRUCTURE = 4
+
+    def __init__(self, key: str, val, msg: str, code: int):
         """Initialization for the ASN1ObjValErr exception.
 
         Args:
             key: the key whose value is invalid
             val: the invalid value
             msg: the error message
+            code: one of the error code class constants
         """
         self.key = key
         self.val = val
         self.msg = msg
-        # Initialize the base class with a summary message
+        self.code = code
         super().__init__(f"key={repr(key)}, message={repr(msg)}, val={repr(val)}")
 
     def __repr__(self):
-        return f"ASN1ObjValErr[key={repr(self.key)}, msg={repr(self.msg)}, val={repr(self.val)}]"
+        return f"ASN1ObjValErr[key={repr(self.key)}, code={self.code}, msg={repr(self.msg)}, val={repr(self.val)}]"
 
 
 # error when encountering an unsupported case

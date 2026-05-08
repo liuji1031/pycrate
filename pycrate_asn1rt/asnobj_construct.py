@@ -87,13 +87,13 @@ Specific attributes:
         elif isinstance(val, dict) and len(val) == 1:
             k, v = next(iter(val.items()))
         else:
-            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='not a valid dict or tuple for CHOICE value check'))
+            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='not a valid dict or tuple for CHOICE value check', code=ASN1ObjValErr.INVALID_STRUCTURE))
             return
         if k in self._cont:
             child_key = '{0}.{1}'.format(_key, k) if _key else k
             self._cont[k]._safechk_val(v, child_key)
         elif not re.match('_ext_[0-9]{1,}', k) or not isinstance(k, bytes_types):
-            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg=f'invalid key: {k}'))
+            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg=f'invalid key: {k}', code=ASN1ObjValErr.INVALID_KEY))
         else:
             pass
             
@@ -105,7 +105,7 @@ Specific attributes:
         elif isinstance(val, dict) and len(val) == 1:
             k, v = next(iter(val.items()))
         else:
-            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='not a dict or tuple for boundary check'))
+            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='not a dict or tuple for boundary check', code=ASN1ObjValErr.INVALID_STRUCTURE))
             return
         if k in self._cont:
             child_key = "{0}.{1}".format(_key, k) if _key else k
@@ -769,7 +769,7 @@ class _CONSTRUCT(ASN1Obj):
     def _safechk_val(self, val, parent_key='', rec=True):
         _key = parent_key or self.fullname()
         if not isinstance(val, dict):
-            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='invalid value: not a dictionary'))
+            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='invalid value: not a dictionary', code=ASN1ObjValErr.INVALID_STRUCTURE))
             return
         for k in val:
             if k in self._cont:
@@ -777,7 +777,7 @@ class _CONSTRUCT(ASN1Obj):
                     child_key = '{0}.{1}'.format(_key, k) if _key else k
                     self._cont[k]._safechk_val(val[k], child_key)
             elif not re.match('_ext_[0-9]{1,}', k) or not isinstance(val[k], bytes_types):
-                ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg=f'invalid key: {k}'))
+                ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg=f'invalid key: {k}', code=ASN1ObjValErr.INVALID_KEY))
         self._safechk_valcompl(val, _key)
 
     def _safechk_valcompl(self, val, parent_key=''):
@@ -785,7 +785,7 @@ class _CONSTRUCT(ASN1Obj):
         # check for OPTIONAL / DEFAULT root values
         missing = set(self._root_mand) - set(val)
         if missing:
-            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='missing mandatory value(s): {0}'.format(missing)))
+            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='missing mandatory value(s): {0}'.format(missing), code=ASN1ObjValErr.MISSING_MANDATORY_KEY))
         # check for grouped extended values
         if self._ext and self._ext_group:
             # filter extended values in val
@@ -796,7 +796,7 @@ class _CONSTRUCT(ASN1Obj):
                     for ident, grp_comp in self._ext_group_obj[grp_id]._cont.items():
                         if not grp_comp._opt:
                             if ident not in ext:
-                                ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='missing extended value for group {0}'.format(grp_id)))
+                                ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='missing extended value for group {0}'.format(grp_id), code=ASN1ObjValErr.MISSING_MANDATORY_KEY))
                             else:
                                 ext.remove(ident)
 
@@ -2666,7 +2666,7 @@ class _CONSTRUCT_OF(ASN1Obj):
     def _safechk_val(self, val, parent_key=''):
         _key = parent_key or self.fullname()
         if not isinstance(val, list):
-            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='invalid value: not a list'))
+            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='invalid value: not a list', code=ASN1ObjValErr.INVALID_STRUCTURE))
             return
         for i, v in enumerate(val):
             item_key = '{0}[{1}]'.format(_key, i) if _key else '[{0}]'.format(i)
@@ -2678,7 +2678,7 @@ class _CONSTRUCT_OF(ASN1Obj):
         if self._const_sz and \
         self._const_sz.ext is None and \
         len(val) not in self._const_sz:
-            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='value out of size constraint'))
+            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='value out of size constraint', code=ASN1ObjValErr.OUT_OF_CONSTRAINT))
         for i, v in enumerate(val):
             item_key = '{0}[{1}]'.format(_key, i) if _key else '[{0}]'.format(i)
             self._cont._safechk_bnd(v, item_key)
