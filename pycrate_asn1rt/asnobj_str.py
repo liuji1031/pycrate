@@ -1332,10 +1332,16 @@ Specific constraints attributes:
         return val
 
     def _safechk_val(self, val, parent_key=''):
+        _key = parent_key or self.fullname()
         val = self._convert_str_val(val)
         self._val = val
         if not isinstance(val, bytes_types):
-            self._get_val_obj(val[0])._safechk_val(val[1], parent_key or self.fullname())
+            if isinstance(val, str_types):  # still a string after conversion
+                ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='invalid OCTET STRING value', code=ASN1ObjValErr.INVALID_VALUE))
+            elif isinstance(val, (tuple, list)) and len(val) == 2: # CONTAINING constraint
+                self._get_val_obj(val[0])._safechk_val(val[1], _key)
+            else:
+                ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='invalid OCTET STRING value', code=ASN1ObjValErr.INVALID_VALUE))
 
     def _safechk_bnd(self, val, parent_key=''):
         _key = parent_key or self.fullname()
@@ -1348,13 +1354,17 @@ Specific constraints attributes:
             self._const_sz.ext is None and \
             len(val) not in self._const_sz:
                 ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='value out of size constraint', code=ASN1ObjValErr.OUT_OF_CONSTRAINT))
-        else:
+        elif isinstance(val, str_types):
+            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='invalid OCTET STRING value', code=ASN1ObjValErr.INVALID_VALUE))
+        elif isinstance(val, (tuple, list)) and len(val) >= 2 and self._const_cont:
             if self._const_cont._typeref:
                 ident = self._const_cont._typeref.called[1]
             else:
                 ident = self._const_cont.TYPE
             if val[0] != ident:
                 ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='value out of containing constraint', code=ASN1ObjValErr.OUT_OF_CONSTRAINT))
+        else:
+            ASN1Obj._errors.append(ASN1ObjValErr(key=_key, val=val, msg='invalid OCTET STRING value', code=ASN1ObjValErr.INVALID_VALUE))
     
     ###
     # conversion between internal value and ASN.1 syntax
